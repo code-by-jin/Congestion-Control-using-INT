@@ -126,7 +126,7 @@ def main():
     send_time = 0
     count_send = 0
     start_time = time.time()
-    for i in range(1, int(sys.argv[5])):
+    for i in range(1, int(sys.argv[4])):
         #shortes_path_nodes, shortes_path_ports = ShorestPath(links, src = src, dst = dst)
         shortes_path_ports = [2, 1]
         #print shortes_path_nodes

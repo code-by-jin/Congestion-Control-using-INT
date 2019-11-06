@@ -115,7 +115,10 @@ parser MyParser(packet_in packet,
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        transition parse_udp;   
+        transition select(hdr.ipv4.protocol) {
+            UDP_PROTOCOL: parse_udp;
+            default: accept;
+        }
     }
 
     state parse_udp {

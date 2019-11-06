@@ -7,7 +7,7 @@ from time import sleep
 # Import P4Runtime lib from parent utils dir
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                 '../../utils/'))
+                 '../../../utils/'))
 import p4runtime_lib.bmv2
 from p4runtime_lib.switch import ShutdownAllSwitchConnections
 import p4runtime_lib.helper
@@ -86,42 +86,42 @@ def main(p4info_file_path, bmv2_file_path):
             name='s1',
             address='127.0.0.1:50051',
             device_id=0,
-            proto_dump_file='logs/s1-p4runtime-requests.txt')
+            proto_dump_file='../logs/s1-p4runtime-requests.txt')
         s2 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s2',
             address='127.0.0.1:50052',
             device_id=1,
-            proto_dump_file='logs/s2-p4runtime-requests.txt')
+            proto_dump_file='../logs/s2-p4runtime-requests.txt')
 
         s3 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s3',
             address='127.0.0.1:50053',
             device_id=2,
-            proto_dump_file='logs/s3-p4runtime-requests.txt')
+            proto_dump_file='../logs/s3-p4runtime-requests.txt')
 
         s4 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s4',
             address='127.0.0.1:50054',
             device_id=3,
-            proto_dump_file='logs/s4-p4runtime-requests.txt')
+            proto_dump_file='../logs/s4-p4runtime-requests.txt')
 
         s5 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s5',
             address='127.0.0.1:50055',
             device_id=4,
-            proto_dump_file='logs/s5-p4runtime-requests.txt')
+            proto_dump_file='../logs/s5-p4runtime-requests.txt')
 
         s6 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s6',
             address='127.0.0.1:50056',
             device_id=5,
-            proto_dump_file='logs/s6-p4runtime-requests.txt')
+            proto_dump_file='../logs/s6-p4runtime-requests.txt')
 
         s7 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s7',
             address='127.0.0.1:50057',
             device_id=6,
-            proto_dump_file='logs/s7-p4runtime-requests.txt')
+            proto_dump_file='../logs/s7-p4runtime-requests.txt')
 
         # Send master arbitration update message to establish this controller as
         # master (required by P4Runtime before performing any other write operation)
@@ -178,10 +178,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Controller')
     parser.add_argument('--p4info', help='p4info proto in text format from p4c',
                         type=str, action="store", required=False,
-                        default='./build/app.p4.p4info.txt')
+                        default='../build/app.p4.p4info.txt')
     parser.add_argument('--bmv2-json', help='BMv2 JSON file from p4c',
                         type=str, action="store", required=False,
-                        default='./build/app.json')
+                        default='../build/app.json')
     args = parser.parse_args()
 
     if not os.path.exists(args.p4info):

@@ -127,7 +127,7 @@ def main():
     count_send = 0
     current_time = time.time()
     shortes_path_nodes, shortes_path_ports = ShorestPath(links, src = src, dst = dst)
-    for i in range(0, int(sys.argv[5])):
+    for i in range(0, int(sys.argv[4])):
         if time.time > current_time + 0.5:
             current_time = time.time() 
             shortes_path_nodes, shortes_path_ports = ShorestPath(links, src = src, dst = dst)
