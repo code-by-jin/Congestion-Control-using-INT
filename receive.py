@@ -39,33 +39,23 @@ class MRI(Packet):
                                    count_from=lambda pkt:(pkt.count*1))]
 
 def record_int(pkt):
-    print type(pkt.swtraces)
     file_name = "int_data.pkl"   
     if os.path.exists(file_name):
         with open("int_data.pkl", 'rb') as f:
             try:
                 df = pd.read_pickle(file_name)
             except:
-                df = pd.DataFrame(columns=['0','1','2','3','4','5','6'])
+                df = pd.DataFrame(columns=['s1','s2','s3','s4','s5','s6'])
             for i in range(len(pkt.swtraces)):
-                swid = str(pkt.swtraces[i].swid)
+                swid = 's'+str(pkt.swtraces[i].swid+1)
                 df[swid] = [pkt.swtraces[i].qlatency]
             df.to_pickle (file_name) 
     else:    
-        df = pd.DataFrame(columns=['0','1','2','3','4','5','6'])
+        df = pd.DataFrame(columns=['s1','s2','s3','s4','s5','s6'])
         for i in range(len(pkt.swtraces)):        
-            swid = str(pkt.swtraces[i].swid)
+            swid = 's' + str(pkt.swtraces[i].swid+1)
             df[swid] = [pkt.swtraces[i].qlatency]
         df.to_pickle (file_name)
-    #if os.path.exists("int_data.pkl"):
-    #    with open("int_data.pkl", 'rb') as f:
-    #        try:
-    #            df_exist = pd.read_pickle(file_name)
-    #            df = pd.concat([df_exist, df])
-    #            df.to_pickle (file_name)
-    #        except:
-    #            pass
-    # else:    
 
 count = 0
 def handle_pkt(pkt):
