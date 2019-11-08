@@ -45,13 +45,13 @@ def record_int(pkt):
             try:
                 df = pd.read_pickle(file_name)
             except:
-                df = pd.DataFrame(columns=['s1','s2','s3','s4','s5','s6'])
+                df = pd.DataFrame(columns=['s1','s2','s3','s4','s5','s6', 's7'])
             for i in range(len(pkt.swtraces)):
                 swid = 's'+str(pkt.swtraces[i].swid+1)
                 df[swid] = [pkt.swtraces[i].qlatency]
             df.to_pickle (file_name) 
     else:    
-        df = pd.DataFrame(columns=['s1','s2','s3','s4','s5','s6'])
+        df = pd.DataFrame(columns=['s1','s2','s3','s4','s5','s6', 's7'])
         for i in range(len(pkt.swtraces)):        
             swid = 's' + str(pkt.swtraces[i].swid+1)
             df[swid] = [pkt.swtraces[i].qlatency]
