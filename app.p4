@@ -3,6 +3,7 @@
 #include <v1model.p4>
 
 const bit<8>  UDP_PROTOCOL = 0x11;
+const bit<8>  TCP_PROTOCOL = 0x6;
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<16> TYPE_SRCROUTING = 0x1234;
 const bit<16> TYPE_INT = 0x10E1;
@@ -17,8 +18,7 @@ typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
 typedef bit<32> ip4Addr_t;
 typedef bit<32> switchID_t;
-typedef bit<32> qlatency_t;
-
+typedef bit<32> qdepth_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -46,6 +46,20 @@ header ipv4_t {
     ip4Addr_t dstAddr;
 }
 
+header tcp_t {
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<32> seqNo;
+    bit<32> ackNo;
+    bit<4>  dataOffset;
+    bit<3>  res;
+    bit<3>  ecn;
+    bit<6>  ctrl;
+    bit<16> window;
+    bit<16> checksum;
+    bit<16> urgentPtr;
+}
+
 header udp_t {
     bit<16> srcPort;
     bit<16> dstPort;
@@ -59,7 +73,7 @@ header mri_t {
 
 header switch_t {
     switchID_t  swid;
-    qlatency_t  qlatency;
+    qdepth_t  qdepth;
 }
 
 struct ingress_metadata_t {
@@ -76,12 +90,13 @@ struct metadata {
 }
 
 struct headers {
-    ethernet_t         ethernet;
+    ethernet_t           ethernet;
     srcRoute_t[MAX_HOPS] srcRoutes;
-    ipv4_t             ipv4;
-    udp_t              udp;
-    mri_t              mri;
-    switch_t[MAX_HOPS] swtraces;
+    ipv4_t               ipv4;
+    tcp_t                tcp;
+    udp_t                udp;
+    mri_t                mri;
+    switch_t[MAX_HOPS]   swtraces;
 }
 
 error { IPHeaderTooShort }
@@ -120,14 +135,15 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.ipv4);
         
         transition select(hdr.ipv4.protocol) {
-            UDP_PROTOCOL: parse_udp;
+            UDP_PROTOCOL: accept;
+            TCP_PROTOCOL: parse_tcp;
             default: accept;
         }
     }
 
-   state parse_udp {
-        packet.extract(hdr.udp);
-        transition select(hdr.udp.dstPort) {
+   state parse_tcp {
+        packet.extract(hdr.tcp);
+        transition select(hdr.tcp.dstPort) {
             TYPE_INT: parse_mri;      //port 4321
             default: accept;
         }       
@@ -233,15 +249,10 @@ control MyEgress(inout headers hdr,
     action add_swtrace(switchID_t swid) { 
         hdr.mri.count = hdr.mri.count + 1;
         hdr.swtraces.push_front(1);
-        // According to the P4_16 spec, pushed elements are invalid, so we need
-        // to call setValid(). Older bmv2 versions would mark the new header(s)
-        // valid automatically (P4_14 behavior), but starting with version 1.11,
-        // bmv2 conforms with the P4_16 spec.
         hdr.swtraces[0].setValid();
         hdr.swtraces[0].swid = swid;
-        hdr.swtraces[0].qlatency = (qlatency_t)standard_metadata.deq_timedelta;
+        hdr.swtraces[0].qdepth = (qdepth_t)standard_metadata.deq_qdepth;
 
-        hdr.udp.length_ = hdr.udp.length_+8;
 	hdr.ipv4.totalLen = hdr.ipv4.totalLen + 8;
     }
 
@@ -293,6 +304,7 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.srcRoutes);     
         packet.emit(hdr.ipv4);
+        packet.emit(hdr.tcp);
         packet.emit(hdr.udp);
         packet.emit(hdr.mri);
         packet.emit(hdr.swtraces);                 

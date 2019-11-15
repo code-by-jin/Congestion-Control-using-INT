@@ -1,11 +1,12 @@
 import os
 import sys
+sys.dont_write_bytecode = True
 
 import json
 import networkx as nx
 import pandas as pd
 import numpy as np
-DEFAULT_WEIGHT = 20
+DEFAULT_WEIGHT = 1
 HOST_TO_SWITCH_PORT = 0
 
 def get_network (topo = "ring"):
@@ -54,32 +55,14 @@ def get_network (topo = "ring"):
 
     return list_switches, dict_host_ip, dict_link_weight, dict_link_port
 
+def update_shorest_path(dict_mri, dict_link_weight, dict_link_port, src = 'h1', dst = 'h4'):
+    
+    # Update link-wieght dictionary 
+    for sw in dict_mri.keys():
+        for src_dst in dict_link_weight.keys():
+            if src_dst[0] == sw:
+                dict_link_weight[src_dst] = dict_mri[sw] + 1
 
-def update_link_status (list_switches, dict_link_weight, file_path):
-    if not os.path.exists(file_path):
-        print (file_path, ' not exist.')
-        return dict_link_weight
- 
-    with open(file_path, 'r') as f:
-            try:
-                df = pd.read_pickle(file_path).iloc[-1]
-            except:
-                print(sys.exc_info()[0])
-                sys.exit(1)
-
-            for sw in list_switches:
-                if np.isnan(df[sw]):
-                    continue
-
-                for (key, value) in dict_link_weight.items():
-                    if key[0] == sw:
-                        dict_link_weight[key] = df[sw]   
-
-    return dict_link_weight 
-
-def update_shorest_path(list_switches, dict_link_weight, dict_link_port, src = 'h1', dst = 'h4', int_file_path = './int_data.pkl'):
-
-    dict_link_weight = update_link_status(list_switches, dict_link_weight, int_file_path)
     shortes_path_nodes, shortes_path_ports = get_shorest_path (dict_link_weight, dict_link_port, src, dst)
     return shortes_path_nodes, shortes_path_ports
 
