@@ -12,7 +12,7 @@ The program can be executed in the same path as https://github.com/p4lang/tutori
 
 4.In h4's terminial, run ```python receive.py``` 
 
-5.In h1's terminial, ```python send.py -t ring -s h1 -d h4 -n 100```. to send 100 packets from h1 to h4. Note: run ```python send.py -h```
+5.In h1's terminial, ```python send.py -t ring -s h1 -d h4 -n 100```. to send 100 packets from h1 to h4. Note: run ```python send.py -h``` to see the options for send.py
 
 
 
