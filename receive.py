@@ -36,6 +36,7 @@ def send_ack(pkt):
     sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = 'h2', dst = 'h1')
 
     ack = Ether(src=get_if_hwaddr(iface), dst="ff:ff:ff:ff:ff:ff")
+    '''
     j = 0
     for p in sp_ports:
         try:
@@ -44,7 +45,8 @@ def send_ack(pkt):
         except ValueError:
             pass
     if ack.haslayer(SourceRoute):
-        ack.getlayer(SourceRoute, j).bos = 1     
+        ack.getlayer(SourceRoute, j).bos = 1 
+    '''    
     ack = ack / IP(dst=pkt[IP].src, proto=17) / UDP(dport=4322, sport=1235) / MRI(count=pkt[MRI].count, swtraces=pkt[MRI].swtraces)
     ack.show2()
     sendp(ack, iface=iface, verbose=False)
@@ -56,24 +58,17 @@ def handle_pkt(pkt):
     sys.stdout.flush()
     send_ack(pkt)
 
-class SourceRoute(Packet):
-   fields_desc = [ BitField("bos", 0, 1),
-                   BitField("port", 0, 15)]
-
-class SourceRoutingTail(Packet):
-   fields_desc = [ XShortField("etherType", 0x800)]
-
 bind_layers(Ether, SourceRoute, type=0x1234)
 bind_layers(SourceRoute, SourceRoute, bos=0)
 bind_layers(SourceRoute, IP, bos=1)
 bind_layers(UDP, MRI)
-bind_layers(TCP, MRI)
+#bind_layers(TCP, MRI)
 
 def main():
     iface = 'eth0'
     print "sniffing on %s" % iface
     sys.stdout.flush()
-    sniff(filter="tcp and port 4321", iface = iface,
+    sniff(filter="udp and port 4321", iface = iface,
           prn = lambda x: handle_pkt(x))
     
 if __name__ == '__main__':

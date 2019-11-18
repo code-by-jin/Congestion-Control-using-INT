@@ -3,7 +3,7 @@
 from threading import Thread
 import argparse
 import sys
-sys.dont_write_bytecode = True
+
 import socket
 import random
 import struct
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from net_topology import get_network, get_shorest_path, update_shorest_path
 from protocols import SwitchTrace, MRI, SourceRoute
+sys.dont_write_bytecode = True
 
 from scapy.all import sniff, sendp, hexdump, get_if_list, get_if_hwaddr, bind_layers
 from scapy.all import Packet, IPOption
@@ -36,7 +37,6 @@ def get_if():
 bind_layers(Ether, SourceRoute, type=0x1234)
 bind_layers(SourceRoute, SourceRoute, bos=0)
 bind_layers(SourceRoute, IP, bos=1)
-bind_layers(TCP, MRI)
 bind_layers(UDP, MRI)
 
 def getOptions(args=sys.argv[1:]):
@@ -49,15 +49,18 @@ def getOptions(args=sys.argv[1:]):
     return options
 
 dict_mri = {}
+window = 1
+
 
 def handle_pkt(ack):
-    print "got a packet"
-    ack.show2()
-    sys.stdout.flush()
+    #print "got ack"
+    #ack.show2()
+    #sys.stdout.flush()
     global dict_mri
     for i in range(0, len(ack[MRI].swtraces)): 
-        dict_mri[ack[MRI].swtraces[i].swid] = ack[MRI].swtraces[i].qdepth  
-    print dict_mri
+        dict_mri[ack[MRI].swtraces[i].swid] = ack[MRI].swtraces[i].qdepth
+        #if ack[MRI].swtraces[i].qdepth > 1:
+        #    window = 1
 
 def send():
     options = getOptions(sys.argv[1:])
@@ -68,14 +71,18 @@ def send():
     sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
 
     iface_tx = get_if()
-    
+    global window    
     global dict_mri
     current_time = time.time()
     for i in range(0, int(options.num)):
-        if time.time() > current_time + 0.5:
-            current_time = time.time()
-            sp_nodes, sp_ports = update_shorest_path(dict_mri, dict_link_weight, dict_link_port, src_host, dst_host)
-        print sp_nodes
+        if all(value < 5 for value in dict_mri.values()):
+             pass
+        else:          
+            if random.random() < 0.5:
+                 sp_nodes, sp_ports = update_shorest_path(dict_mri, dict_link_weight, dict_link_port, src_host, dst_host)
+            else:
+                window = 1
+        print 'Path:', sp_nodes
         j = 0
         pkt = Ether(src=get_if_hwaddr(iface_tx), dst="ff:ff:ff:ff:ff:ff") 
         for p in sp_ports:
@@ -87,16 +94,19 @@ def send():
         if pkt.haslayer(SourceRoute):
             pkt.getlayer(SourceRoute, j).bos = 1
 
-        pkt = pkt / IP(dst=dst_ip, proto=6) / TCP(dport=4321, sport=random.randint(49152,65535)) / MRI(count=0, swtraces=[]) / str(RandString(size=10))
-        pkt.show2()
-        sendp(pkt, iface=iface_tx, inter=0, verbose=False)
+        pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=0, swtraces=[]) / str(RandString(size=1190))
+        #pkt.show2()
+        #sys.stdout.flush()
 
+        window = window*2
+        print window
+        sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)
+        
 def receive():    
     iface_rx = 'eth0'
     print "sniffing on %s" % iface_rx
     sys.stdout.flush()
-    sniff(filter="udp and port 4322", iface = iface_rx,
-          prn = lambda x: handle_pkt(x))
+    sniff(filter="udp and port 4322", iface=iface_rx, prn=lambda x: handle_pkt(x))
 
 if __name__ == '__main__':
     Thread(target = send).start()

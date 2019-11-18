@@ -135,15 +135,15 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.ipv4);
         
         transition select(hdr.ipv4.protocol) {
-            UDP_PROTOCOL: accept;
-            TCP_PROTOCOL: parse_tcp;
+            TCP_PROTOCOL: accept;
+            UDP_PROTOCOL: parse_udp;
             default: accept;
         }
     }
 
-   state parse_tcp {
-        packet.extract(hdr.tcp);
-        transition select(hdr.tcp.dstPort) {
+   state parse_udp {
+        packet.extract(hdr.udp);
+        transition select(hdr.udp.dstPort) {
             TYPE_INT: parse_mri;      //port 4321
             default: accept;
         }       
@@ -252,7 +252,7 @@ control MyEgress(inout headers hdr,
         hdr.swtraces[0].setValid();
         hdr.swtraces[0].swid = swid;
         hdr.swtraces[0].qdepth = (qdepth_t)standard_metadata.deq_qdepth;
-
+        hdr.udp.length_ =  hdr.udp.length_ + 8;
 	hdr.ipv4.totalLen = hdr.ipv4.totalLen + 8;
     }
 
