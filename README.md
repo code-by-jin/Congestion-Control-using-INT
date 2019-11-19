@@ -1,4 +1,4 @@
-# Route-Planning-with-INT
+# Congestion-Control-with-INT
 Based on the INT information, redirect the paths with source routing and flow control based on congestion status.
 
 # Requirement
