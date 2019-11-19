@@ -12,7 +12,7 @@ The program can be executed in the same path as https://github.com/p4lang/tutori
 
 4.In the Mininet CLI ```mininet>```, run ```xterm h1 h4``` to open terminals for h1, h4 respectively. 
 
-5.Optional step: run ```xterm h2 h3```, run ```iperf -s -u``` in h3's terminal and run ```iperf -c 10.0.3.3 -u -t 100 -b 4m ``` to create congestion. 
+5.Optional step: run ```xterm h2 h3```, run ```iperf -s -u``` in h3's terminal, run ```iperf -c 10.0.3.3 -u -t 100 -b 4m ``` in h2's terminal to create congestion. 
 
 6.In h4's terminial, run ```python receive.py``` 
 
