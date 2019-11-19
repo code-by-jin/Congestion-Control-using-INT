@@ -1,18 +1,23 @@
 # Route-Planning-with-INT
-Based on the INT information, redirect the paths for the source routing.
+Based on the INT information, redirect the paths with source routing and flow control based on congestion status.
 
 # Requirement
 The program can be executed in the same path as https://github.com/p4lang/tutorials/tree/master/exercises/source\_routing. 
 
-1.After compiling p4 file, in another terminal, run ```cd topology```.
+1.Choose the topology you want to use, the default is ring topology. If you want to use fat tree topology, edit Makefile and change the second line to ```TOPO = topology/spine/topology.json```.
 
-2.Choose the topology (ring or spine) you want to use, then run ```python ./ring/controller.py```;
+2.Run ```make``` to compile .p4 file.
 
-3.In the Mininet CLI ```mininet>```, run ```xterm h1 h4``` to open terminals for h1, h4 respectively.
+3.After compiling p4 file, in another terminal, run ```cd topology``` and run ```python ./ring/controller.py``` (run ```python ./spine/controller.py``` if you're using fat tree topology);
 
-4.In h4's terminial, run ```python receive.py``` 
+4.In the Mininet CLI ```mininet>```, run ```xterm h1 h4``` to open terminals for h1, h4 respectively. 
 
-5.In h1's terminial, ```python send.py -t ring -s h1 -d h4 -n 100```. to send 100 packets from h1 to h4. Note: run ```python send.py -h``` to see the options for send.py
+5.Optional step: run ```xterm h2 h3```, run ```iperf -s -u``` in h3's terminal and run ```iperf -c 10.0.3.3 -u -t 100 -b 4m ``` to create congestion. 
+
+6.In h4's terminial, run ```python receive.py``` 
+
+7.In h1's terminial, ```python send.py```. to send 10000 packets from h1 to h4. Note: run ```python send.py -h``` to see the options for send.py.
+
 
 
 

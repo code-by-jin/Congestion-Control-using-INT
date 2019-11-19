@@ -62,7 +62,7 @@ def update_shorest_path(dict_mri, dict_link_weight, dict_link_port, src = 'h1', 
         for src_dst in dict_link_weight.keys():
             if src_dst[0] == sw:
                 dict_link_weight[src_dst] = dict_mri[sw] + 1
-
+     
     shortes_path_nodes, shortes_path_ports = get_shorest_path (dict_link_weight, dict_link_port, src, dst)
     return shortes_path_nodes, shortes_path_ports
 

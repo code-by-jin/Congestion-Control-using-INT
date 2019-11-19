@@ -41,26 +41,30 @@ bind_layers(UDP, MRI)
 
 def getOptions(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(description="Parses command.")
-    parser.add_argument("-t", "--topo", type=str, help="Network topology to use.")
-    parser.add_argument("-s", "--src", type=str, help="Source host name.")
-    parser.add_argument("-d", "--dst", type=str, help="Destination host name.")
-    parser.add_argument("-n", "--num", type=int, help="The number of packets to send.")
+    parser.add_argument("-t", "--topo", type=str, default="ring", help="Network topology to use.")
+    parser.add_argument("-s", "--src", type=str, default="h1", help="Source host name.")
+    parser.add_argument("-d", "--dst", type=str, default="h4", help="Destination host name.")
+    parser.add_argument("-n", "--num", type=int, default="100000", help="The number of packets to send.")
     options = parser.parse_args(args)
     return options
 
 dict_mri = {}
 window = 1
-
+ack_flag = 0
 
 def handle_pkt(ack):
+    global ack_flag
     #print "got ack"
     #ack.show2()
     #sys.stdout.flush()
     global dict_mri
-    for i in range(0, len(ack[MRI].swtraces)): 
-        dict_mri[ack[MRI].swtraces[i].swid] = ack[MRI].swtraces[i].qdepth
+    for i in range(0, len(ack[MRI].swtraces)):
+        sw_name = 's'+str(ack[MRI].swtraces[i].swid+1) 
+        dict_mri[sw_name] = ack[MRI].swtraces[i].qdepth
         #if ack[MRI].swtraces[i].qdepth > 1:
         #    window = 1
+    if any(value > 5 for value in dict_mri.values()):
+        ack_flag = 1
 
 def send():
     options = getOptions(sys.argv[1:])
@@ -71,16 +75,22 @@ def send():
     sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
 
     iface_tx = get_if()
-    global window    
-    global dict_mri
     current_time = time.time()
-    for i in range(0, int(options.num)):
-        if all(value < 5 for value in dict_mri.values()):
+    total_sent = 0
+    while total_sent < int(options.num):
+        print "Total sent:", total_sent
+        global window
+        global ack_flag
+        global dict_mri
+        if ack_flag == 0:
              pass
-        else:          
+        else:  
+            ack_flag = 0        
             if random.random() < 0.5:
-                 sp_nodes, sp_ports = update_shorest_path(dict_mri, dict_link_weight, dict_link_port, src_host, dst_host)
+                sp_nodes, sp_ports = update_shorest_path(dict_mri, dict_link_weight.copy(), dict_link_port, src_host, dst_host)
             else:
+                sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
+
                 window = 1
         print 'Path:', sp_nodes
         j = 0
@@ -96,11 +106,13 @@ def send():
 
         pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=0, swtraces=[]) / str(RandString(size=1190))
         #pkt.show2()
-        #sys.stdout.flush()
-
-        window = window*2
+        #sys.stdout.flush() 
+        if window + total_sent > int(options.num):
+            window = int(options.num) - total_sent
         print window
+        total_sent = total_sent + window
         sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)
+        window = window*2
         
 def receive():    
     iface_rx = 'eth0'
