@@ -2,7 +2,7 @@
 Based on the INT information, redirect the paths with source routing and flow control based on congestion status.
 
 # Requirement
-The program can be executed in the same path as https://github.com/p4lang/tutorials/tree/master/exercises/source\_routing. 
+The program can be executed in the same path as https://github.com/p4lang/tutorials/tree/master/exercises/source_routing. 
 
 1.Choose the topology you want to use, the default is ring topology. If you want to use fat tree topology, edit Makefile and change the second line to ```TOPO = topology/spine/topology.json```.
 
