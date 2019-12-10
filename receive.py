@@ -45,10 +45,10 @@ def send_ack(pkt):
         dict_mri[pkt[MRI].swtraces[i].swid] = pkt[MRI].swtraces[i].qdepth
         if pkt[MRI].swtraces[i].qdepth > 5:
             flag = 1
-
+    """
     if flag == 0 or time.time()-t_ack < 1:
         return
-    
+    """
     t_ack = time.time()
     src_ip = pkt[IP].src
     dst_ip = pkt[IP].dst

@@ -19,6 +19,9 @@ typedef bit<48> macAddr_t;
 typedef bit<32> ip4Addr_t;
 typedef bit<32> switchID_t;
 typedef bit<32> qdepth_t;
+typedef bit<32> egresst_t;
+typedef bit<32> plength_t;
+typedef bit<32> txtotal_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -74,6 +77,9 @@ header mri_t {
 header switch_t {
     switchID_t  swid;
     qdepth_t  qdepth;
+    egresst_t  egresst;
+    plength_t   plength;
+    txtotal_t   txtotal;
 }
 
 struct ingress_metadata_t {
@@ -246,14 +252,33 @@ control MyIngress(inout headers hdr,
 control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
+   
+    register<bit<32>>(16384) r;  
+   
+    action update_total_tx() {
+        bit<32> last_seen;
+        bit<32> now_seen;
+  
+        r.read(last_seen, (bit<32>)standard_metadata.egress_port);
+        now_seen = last_seen + (bit<32>)standard_metadata.packet_length;
+        r.write((bit<32>)standard_metadata.egress_port, now_seen);
+    }
+
     action add_swtrace(switchID_t swid) { 
         hdr.mri.count = hdr.mri.count + 1;
         hdr.swtraces.push_front(1);
         hdr.swtraces[0].setValid();
         hdr.swtraces[0].swid = swid;
         hdr.swtraces[0].qdepth = (qdepth_t)standard_metadata.deq_qdepth;
-        hdr.udp.length_ =  hdr.udp.length_ + 8;
-	hdr.ipv4.totalLen = hdr.ipv4.totalLen + 8;
+        hdr.swtraces[0].egresst = (egresst_t)standard_metadata.egress_global_timestamp;
+        hdr.swtraces[0].plength = (plength_t)standard_metadata.packet_length;
+
+        bit<32> now_seen;
+        r.read(now_seen, (bit<32>)standard_metadata.egress_port);
+        hdr.swtraces[0].txtotal = now_seen; 
+ 
+	hdr.ipv4.totalLen = hdr.ipv4.totalLen + 20;
+        hdr.udp.length_ =  hdr.udp.length_ + 20;
     }
 
     table swtrace {
@@ -265,6 +290,7 @@ control MyEgress(inout headers hdr,
     }
     
     apply {
+        update_total_tx();
         if (hdr.mri.isValid()) {
             swtrace.apply();
         }
