@@ -1,5 +1,5 @@
 # Congestion-Control-with-INT
-Based on the INT information, redirect the paths with source routing and flow control based on congestion status.
+Based on the INT information, combine traffic engineer and congestion control.
 
 # Requirement
 The program can be executed in the same path as https://github.com/p4lang/tutorials/tree/master/exercises/source_routing. 
