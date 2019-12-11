@@ -5,7 +5,6 @@ import struct
 import pandas as pd
 import argparse
 
-from threading import Thread
 from scapy.all import sniff, sendp, hexdump, get_if_list, get_if_hwaddr, bind_layers
 from scapy.all import Packet, IPOption
 from scapy.all import PacketListField, ShortField, IntField, LongField, BitField, FieldListField, FieldLenField
@@ -31,7 +30,6 @@ def get_if():
     return iface
 
 dict_mri = {}
-t_ack = 0
 
 def send_ack(pkt):
     iface = get_if()
@@ -39,17 +37,13 @@ def send_ack(pkt):
     options = getOptions(sys.argv[1:])
     list_switches, dict_host_ip, dict_link_weight, dict_link_port = get_network (options.topo) 
     global dict_mri
-    global t_ack
+
     flag = 0    
     for i in range(0, len(pkt[MRI].swtraces)): 
         dict_mri[pkt[MRI].swtraces[i].swid] = pkt[MRI].swtraces[i].qdepth
         if pkt[MRI].swtraces[i].qdepth > 5:
             flag = 1
-    """
-    if flag == 0 or time.time()-t_ack < 1:
-        return
-    """
-    t_ack = time.time()
+
     src_ip = pkt[IP].src
     dst_ip = pkt[IP].dst
     
@@ -74,8 +68,12 @@ def send_ack(pkt):
     sendp(ack, iface=iface, verbose=False)
     print ("ACK sent")    
 
+count = 0
+
 def handle_pkt(pkt):
-    print "got a packet"
+    global count
+    count = count + 1
+    print "in total number: ", count
     pkt.show2()
     sys.stdout.flush()
     send_ack(pkt)

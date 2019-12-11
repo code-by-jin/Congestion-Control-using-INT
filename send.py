@@ -66,17 +66,17 @@ def handle_pkt(ack):
     global dict_weight_update
     if ack[MRI].count < 2:
         return
-    print type(ack[MRI].swtraces)
+
     swtraces = ack[MRI].swtraces
     swtraces.reverse() 
     t_sent = swtraces[0].egresst
     if t_sent == last_t_sent:
         return 
-
+    last_t_sent = t_sent
     # measure inflight bytes for each link
     t_rx = time.time()*1000%100000
     print "Receive Time: ", t_rx
-    rtt = (t_rx - t_sent)/1000
+    rtt = (t_rx - t_sent)*1000
     print "RTT: ", rtt
     U_max = 0
  
@@ -84,12 +84,13 @@ def handle_pkt(ack):
         sw_src = 's'+str(swtraces[i].swid+1)
         if sw_src == 's101':
             sw_src = 'h1'
-        print "SW_SRC: ", sw_src
+
         if i+1 in range(0, len(swtraces)):
             sw_dst = 's'+str(swtraces[i+1].swid+1)
-        sw_dst = 'h4'
+        else:
+            sw_dst = 'h4'
         link = (sw_src, sw_dst)
-        print dict_mri
+
         q_len = swtraces[i].qdepth   
         if (link in dict_mri) and Flag==1:
             tx_rate = (swtraces[i].txtotal - dict_mri[link].txtotal) / (swtraces[i].egresst - dict_mri[link].egresst)
@@ -99,7 +100,7 @@ def handle_pkt(ack):
 
         if U == 0:
             U = 0.1
-        print U
+
         if U > U_max:
             U_max = U
         dict_mri[link] = swtraces[i]
@@ -122,16 +123,18 @@ def send_pkt(U):
     sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
 
     iface_tx = get_if()
-    
-    if Flag == 0:
-        window = window
-
-    elif random.random() < 0.5:
-        Flag = 0
-        sp_nodes, sp_ports = update_shorest_path(dict_weight_update, dict_link_weight.copy(), dict_link_port, src_host, dst_host)
+    ''' 
+    if U > THREADHOLD:
+        if Flag == 0:
+            window = int(window/(U/THREADHOLD)) + 10
+            Flag = 1
+        else:
+            sp_nodes, sp_ports = update_shorest_path(dict_weight_update, dict_link_weight.copy(), dict_link_port, src_host, dst_host)
+            Flag = 0
     else:
-        Flag = 1
-        window = int(window/(U/THREADHOLD)) + 10
+    '''
+    window = int(window/(U/THREADHOLD)) + 10
+    Flag = 1
 
     print 'Path:', sp_ports
     j = 0
@@ -149,13 +152,13 @@ def send_pkt(U):
         
     if window + total_sent > int(options.num):
         window = int(options.num) - total_sent
-        sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)
-        exit()
     total_sent = total_sent + window
     print ("Window is: ", window)
     print ("Route is: ", sp_ports)        
     print ("Total Sent: ", total_sent)
     sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)
+    if total_sent == int(options.num):
+        exit()
 
 def warm_up():
     options = getOptions(sys.argv[1:])
