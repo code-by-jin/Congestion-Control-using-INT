@@ -6,7 +6,7 @@ import json
 import networkx as nx
 import pandas as pd
 import numpy as np
-DEFAULT_WEIGHT = 1
+DEFAULT_WEIGHT = 0.01
 HOST_TO_SWITCH_PORT = 0
 
 def get_network (topo = "ring"):
