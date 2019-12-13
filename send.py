@@ -8,7 +8,7 @@ from threading import Thread
 import socket
 import random
 import struct
-
+import copy
 from os import path
 import numpy as np
 import pandas as pd
@@ -33,6 +33,7 @@ sp_ports = []
 THREADHOLD = 0.8
 total_sent = 50
 Flag = 0
+time_start = time.time()
 
 def get_if():
     ifs=get_if_list()
@@ -64,9 +65,10 @@ def handle_pkt(ack):
 
     global list_switches, dict_host_ip, dict_link_weight, dict_link_port, src_host, dst_host, dst_ip
     
+    local_dict_link_weight = copy.deepcopy(dict_link_weight)
     global last_t_sent
     global dict_mri
-
+    global time_start
     if ack[MRI].count < 2:
         return
 
@@ -78,7 +80,7 @@ def handle_pkt(ack):
     last_t_sent = t_sent
 
     # measure inflight bytes for each link
-    t_rx = time.time()*1000%100000
+    t_rx = (time.time()-time_start)*1000
     print "Receive Time: ", t_rx
     rtt = (t_rx - t_sent)*1000
     print "RTT: ", rtt
@@ -110,23 +112,23 @@ def handle_pkt(ack):
         if U > U_max:
             U_max = U
         dict_mri[link] = swtraces[i]
-        dict_link_weight[link] = U
+        local_dict_link_weight[link] = U
     print "U_MAX: ", U_max
-    send_pkt(U_max)
+    send_pkt(U_max, local_dict_link_weight)
 
-def send_pkt(U):
+def send_pkt(U, local_dict_link_weight):
     
     global list_switches, dict_host_ip, dict_link_weight, dict_link_port, src_host, dst_host, dst_ip
-
+    global sp_nodes, sp_ports
     global total_sent, window
-
+    global time_start
     iface_tx = get_if()
     if U > THREADHOLD:
         window = int(window/(U/THREADHOLD)) + 5
+        if random.random() <= 0.5:
+            sp_nodes, sp_ports = get_shorest_path(local_dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
     else:
         window = window+5
-    sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
-
 
     print 'Path:', sp_ports
     j = 0
@@ -139,7 +141,7 @@ def send_pkt(U):
             pass
     if pkt.haslayer(SourceRoute):
         pkt.getlayer(SourceRoute, j).bos = 1
-    t = time.time()*1000%100000
+    t = (time.time()-time_start)*1000
     pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000))  
         
     if window + total_sent > int(options.num):
@@ -153,7 +155,7 @@ def send_pkt(U):
         exit()
 
 def send():
-    
+    global time_start
     global options
     options = getOptions(sys.argv[1:])
 
@@ -180,7 +182,7 @@ def send():
         pkt.getlayer(SourceRoute, j).bos = 1
     print ("Winodow is: ", window)
     print ("Route is: ", sp_ports)
-    t = time.time()*1000%100000
+    t = (time.time()-time_start)*1000
     print "Send Time: ", t
     pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000)) 
     sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)  
