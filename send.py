@@ -128,6 +128,8 @@ def send_pkt(U, local_dict_link_weight):
         if random.random() <= 0.5:
             sp_nodes, sp_ports = get_shorest_path(local_dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
     else:
+        if random.random() <= 0.1:
+            sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
         window = window+5
 
     print 'Path:', sp_ports
@@ -152,6 +154,7 @@ def send_pkt(U, local_dict_link_weight):
     print ("Total Sent: ", total_sent)
     sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)
     if total_sent == int(options.num):
+        print "Time Start: ", time_start
         exit()
 
 def send():
@@ -186,7 +189,8 @@ def send():
     print "Send Time: ", t
     pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000)) 
     sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)  
-         
+
+     
 def receive():    
     iface_rx = 'eth0'
     print "sniffing on %s" % iface_rx

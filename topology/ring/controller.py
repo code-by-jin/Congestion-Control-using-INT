@@ -183,6 +183,16 @@ def main(p4info_file_path, bmv2_file_path):
         writeIpv4Rules(p4info_helper, s6, dst_eth_addr="08:00:00:00:01:00", dst_ip_addr=h1_ip_addr, egress_port=1)
         writeIpv4Rules(p4info_helper, s7, dst_eth_addr="08:00:00:00:01:00", dst_ip_addr=h1_ip_addr, egress_port=1)
 
+        h5_ip_addr="10.0.5.5"
+        writeIpv4Rules(p4info_helper, s1, dst_eth_addr="08:00:00:00:05:55", dst_ip_addr=h5_ip_addr, egress_port=4)
+        writeIpv4Rules(p4info_helper, s2, dst_eth_addr="08:00:00:00:05:00", dst_ip_addr=h5_ip_addr, egress_port=3)
+        writeIpv4Rules(p4info_helper, s3, dst_eth_addr="08:00:00:00:05:00", dst_ip_addr=h5_ip_addr, egress_port=3)
+        writeIpv4Rules(p4info_helper, s4, dst_eth_addr="08:00:00:00:05:00", dst_ip_addr=h5_ip_addr, egress_port=3)
+        writeIpv4Rules(p4info_helper, s5, dst_eth_addr="08:00:00:00:05:00", dst_ip_addr=h5_ip_addr, egress_port=1)
+        writeIpv4Rules(p4info_helper, s6, dst_eth_addr="08:00:00:00:05:00", dst_ip_addr=h5_ip_addr, egress_port=1)
+        writeIpv4Rules(p4info_helper, s7, dst_eth_addr="08:00:00:00:05:00", dst_ip_addr=h5_ip_addr, egress_port=1)
+
+
         h2_ip_addr="10.0.2.2"
         writeIpv4Rules(p4info_helper, s1, dst_eth_addr="08:00:00:00:02:00", dst_ip_addr=h2_ip_addr, egress_port=2)   
         writeIpv4Rules(p4info_helper, s2, dst_eth_addr="08:00:00:00:02:22", dst_ip_addr=h2_ip_addr, egress_port=1) 
@@ -204,11 +214,20 @@ def main(p4info_file_path, bmv2_file_path):
         h4_ip_addr="10.0.4.4"
         writeIpv4Rules(p4info_helper, s1, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=2)
         writeIpv4Rules(p4info_helper, s2, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=2)
-        writeIpv4Rules(p4info_helper, s3, dst_eth_addr="08:00:00:00:04:44", dst_ip_addr=h4_ip_addr, egress_port=2)
-        writeIpv4Rules(p4info_helper, s4, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=1)
+        writeIpv4Rules(p4info_helper, s3, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=2)
+        writeIpv4Rules(p4info_helper, s4, dst_eth_addr="08:00:00:00:04:44", dst_ip_addr=h4_ip_addr, egress_port=1)
         writeIpv4Rules(p4info_helper, s5, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=2)
         writeIpv4Rules(p4info_helper, s6, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=2)
         writeIpv4Rules(p4info_helper, s7, dst_eth_addr="08:00:00:00:04:00", dst_ip_addr=h4_ip_addr, egress_port=2)
+
+        h6_ip_addr="10.0.6.6"
+        writeIpv4Rules(p4info_helper, s1, dst_eth_addr="08:00:00:00:06:00", dst_ip_addr=h6_ip_addr, egress_port=2)
+        writeIpv4Rules(p4info_helper, s2, dst_eth_addr="08:00:00:00:06:00", dst_ip_addr=h6_ip_addr, egress_port=2)
+        writeIpv4Rules(p4info_helper, s3, dst_eth_addr="08:00:00:00:06:00", dst_ip_addr=h6_ip_addr, egress_port=2)
+        writeIpv4Rules(p4info_helper, s4, dst_eth_addr="08:00:00:00:06:66", dst_ip_addr=h6_ip_addr, egress_port=4)
+        writeIpv4Rules(p4info_helper, s5, dst_eth_addr="08:00:00:00:06:00", dst_ip_addr=h6_ip_addr, egress_port=2)
+        writeIpv4Rules(p4info_helper, s6, dst_eth_addr="08:00:00:00:06:00", dst_ip_addr=h6_ip_addr, egress_port=2)
+        writeIpv4Rules(p4info_helper, s7, dst_eth_addr="08:00:00:00:06:00", dst_ip_addr=h6_ip_addr, egress_port=2)
 
         readTableRules(p4info_helper, s1)
         readTableRules(p4info_helper, s2)

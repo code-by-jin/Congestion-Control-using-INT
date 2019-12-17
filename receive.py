@@ -66,7 +66,7 @@ def send_ack(pkt):
     ack = ack / IP(dst=pkt[IP].src, proto=17) / UDP(dport=4322, sport=1235) / MRI(count=pkt[MRI].count, swtraces=pkt[MRI].swtraces)
     ack.show2()
     sendp(ack, iface=iface, verbose=False)
-    print ("ACK sent")    
+    print ("ACK sent at time: ", time.time())    
 
 count = 0
 
