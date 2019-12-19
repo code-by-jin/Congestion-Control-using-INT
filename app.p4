@@ -20,6 +20,7 @@ typedef bit<32> ip4Addr_t;
 typedef bit<32> switchID_t;
 typedef bit<32> qdepth_t;
 typedef bit<32> egresst_t;
+typedef bit<32> ingresst_t;
 typedef bit<32> plength_t;
 typedef bit<32> txtotal_t;
 
@@ -75,11 +76,12 @@ header mri_t {
 }
 
 header switch_t {
-    switchID_t  swid;
-    qdepth_t  qdepth;
+    switchID_t swid;
+    qdepth_t   qdepth;
+    ingresst_t ingresst;
     egresst_t  egresst;
-    plength_t   plength;
-    txtotal_t   txtotal;
+    plength_t  plength;
+    txtotal_t  txtotal;
 }
 
 struct ingress_metadata_t {
@@ -271,14 +273,15 @@ control MyEgress(inout headers hdr,
         hdr.swtraces[0].swid = swid;
         hdr.swtraces[0].qdepth = (qdepth_t)standard_metadata.deq_qdepth;
         hdr.swtraces[0].egresst = (egresst_t)standard_metadata.egress_global_timestamp;
+        hdr.swtraces[0].ingresst = (ingresst_t)standard_metadata.ingress_global_timestamp;
         hdr.swtraces[0].plength = (plength_t)standard_metadata.packet_length;
 
         bit<32> now_seen;
         r.read(now_seen, (bit<32>)standard_metadata.egress_port);
         hdr.swtraces[0].txtotal = now_seen; 
  
-	hdr.ipv4.totalLen = hdr.ipv4.totalLen + 20;
-        hdr.udp.length_ =  hdr.udp.length_ + 20;
+	hdr.ipv4.totalLen = hdr.ipv4.totalLen + 24;
+        hdr.udp.length_ =  hdr.udp.length_ + 24;
     }
 
     table swtrace {

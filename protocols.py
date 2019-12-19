@@ -7,6 +7,7 @@ from scapy.all import Packet
 class SwitchTrace(Packet):
     fields_desc = [ IntField("swid", 0),
                     IntField("qdepth", 0),
+                    IntField("ingresst", 0),
                     IntField("egresst", 0),
                     IntField("plength", 0),
                     IntField("txtotal", 0)]

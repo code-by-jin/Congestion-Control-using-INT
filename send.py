@@ -26,13 +26,16 @@ np.random.seed(2)  # reproducible
 
 # global variables for window control and traffic engineer
 last_t_sent = 0
-dict_mri = {}
+lastSwtrace = {}
 dict_link_weight = {}
-window = 50
-sp_ports = []
-THREADHOLD = 0.8
-total_sent = 50
-Flag = 0
+wCurr = 50
+THRESHOLD = 0.8
+PROB_CONGESTION = 0.5
+PROB_NON_CONGESTION = 0.2
+
+totalSent = 0
+justChangeRoute = 1
+WADD = 10
 time_start = time.time()
 
 def get_if():
@@ -61,121 +64,96 @@ def getOptions(args=sys.argv[1:]):
     options = parser.parse_args(args)
     return options
 
-def handle_pkt(ack):
+options = getOptions(sys.argv[1:]) 
+list_switches, dict_host_ip, dict_link_weight, dict_link_port = get_network (options.topo)
+src_host, dst_host = options.src, options.dst
+dst_ip = dict_host_ip[dst_host]
+_, rCurr = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
+goalSent = int(options.num)
 
-    global list_switches, dict_host_ip, dict_link_weight, dict_link_port, src_host, dst_host, dst_ip
-    
-    local_dict_link_weight = copy.deepcopy(dict_link_weight)
-    global last_t_sent
-    global dict_mri
-    global time_start
+def measureInflight(ack, rtt):
+    U = {}
+    swtraces = ack[MRI].swtraces
+    swtraces.reverse()
+
+    # Tarver links between switches.
+    for i in range(1, ack[MRI].count-1):
+        swSrc = 's'+str(swtraces[i].swid+1)
+        swDst = 's'+str(swtraces[i+1].swid+1)
+        link = (swSrc, swDst)
+        print "link", link
+        qLen = swtraces[i].qdepth
+        rtt = swtraces[i+1].ingresst - swtraces[i].egresst
+        txDiff = swtraces[i].txtotal - lastSwtrace[i].txtotal
+        timeDiff = swtraces[i].egresst - lastSwtrace[i].egresst
+        txRate = float(txDiff)/timeDiff 
+        U[link] = (qLen*swtraces[i].plength + rtt*txRate) / (0.5*rtt) # 0.5 megabytes/second = 0.5 bytes/microsecond
+    return U    
+
+def congestionControl(U, wCurr):
+
+    uMax = max(U.values())
+    if uMax > THRESHOLD:
+        w = int(wCurr/(uMax/THRESHOLD))
+    else:
+        w = wCurr + WADD 
+    return w 
+
+def trafficEngineer(U):
+    global dict_link_weight, dict_link_port, src_host, dst_host
+    G = dict_link_weight
+    for link in U.keys():
+        G[link] = U[link]
+    _, route = get_shorest_path(G, dict_link_port, src = src_host, dst = dst_host)
+    return route
+
+def react_ack(ack):
+    # Filter the packets which are not INT acks from receiver
     if ack[MRI].count < 2:
         return
 
-    swtraces = ack[MRI].swtraces
-    swtraces.reverse() 
-    t_sent = swtraces[0].egresst
-    if t_sent <= last_t_sent:
-        return 
-    last_t_sent = t_sent
-
-    # measure inflight bytes for each link
-    t_rx = (time.time()-time_start)*1000
-    print "Receive Time: ", t_rx
-    rtt = (t_rx - t_sent)*1000
-    print "RTT: ", rtt
-    U_max = 0
- 
-    for i in range(1, ack[MRI].count-1):
-        sw_src = 's'+str(swtraces[i].swid+1)
-        if sw_src == 's101':
-            sw_src = 'h1'
-
-        if i+1 in range(0, len(swtraces)):
-            sw_dst = 's'+str(swtraces[i+1].swid+1)
+    # Only react to the first packet if a sequence
+    global last_t_sent, justChangeRoute, wCurr, rCurr, lastSwtrace
+    tTx = ack[MRI].swtraces[-1].egresst
+    if tTx > last_t_sent:    
+        last_t_sent = tTx
+       
+        if justChangeRoute:
+            window = wCurr
+            route = rCurr 
+        else:    
+            tRx = (time.time()-time_start)*1000000 # timestamp in the unit of microsecond
+            # rtt = (tRx - tTx)
+            rtt = 184034.806639
+            # print "RTT: ", rtt
+            U = measureInflight(ack, rtt)
+            window = congestionControl(U, wCurr)
+            route = rCurr
+            print "U Max: ", max(U.values())
+            if max(U.values()) > THRESHOLD:
+                if random.random() < PROB_CONGESTION:
+                    route = trafficEngineer(U)
+            else:
+                if random.random() < PROB_NON_CONGESTION:
+                    route = trafficEngineer({})
+        if route != rCurr:
+            justChangeRoute = 1
         else:
-            sw_dst = 'h4'
-        link = (sw_src, sw_dst)
-        print "Link:", link 
-        q_len = swtraces[i].qdepth   
-        if link in dict_mri:
-            tx_diff = swtraces[i].txtotal - dict_mri[link].txtotal
-            time_diff = swtraces[i].egresst - dict_mri[link].egresst
-            tx_rate = float(tx_diff)/time_diff
-            U = (q_len + rtt*tx_rate) / 500000
-            print "U: ", U 
-        else:
-            U = THREADHOLD
-        if U < 0.1:
-            U = 0.1
+            justChangeRoute = 0
+    	wCurr = window
+    	rCurr = route
+    	print "If Change the Route: ", justChangeRoute
+    	send()
 
-        if U > U_max:
-            U_max = U
-        dict_mri[link] = swtraces[i]
-        local_dict_link_weight[link] = U
-    print "U_MAX: ", U_max
-    send_pkt(U_max, local_dict_link_weight)
+    lastSwtrace = ack[MRI].swtraces
+    lastSwtrace.reverse()
 
-def send_pkt(U, local_dict_link_weight):
-    
-    global list_switches, dict_host_ip, dict_link_weight, dict_link_port, src_host, dst_host, dst_ip
-    global sp_nodes, sp_ports
-    global total_sent, window
-    global time_start
+def send(): 
     iface_tx = get_if()
-    if U > THREADHOLD:
-        window = int(window/(U/THREADHOLD)) + 5
-        if random.random() <= 0.5:
-            sp_nodes, sp_ports = get_shorest_path(local_dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
-    else:
-        if random.random() <= 0.1:
-            sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
-        window = window+5
-
-    print 'Path:', sp_ports
-    j = 0
-    pkt = Ether(src=get_if_hwaddr(iface_tx), dst="ff:ff:ff:ff:ff:ff") 
-    for p in sp_ports:
-        try:
-            pkt = pkt / SourceRoute(bos=0, port=p)
-            j = j+1
-        except ValueError:
-            pass
-    if pkt.haslayer(SourceRoute):
-        pkt.getlayer(SourceRoute, j).bos = 1
-    t = (time.time()-time_start)*1000
-    pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000))  
-        
-    if window + total_sent > int(options.num):
-        window = int(options.num) - total_sent
-    total_sent = total_sent + window
-    print ("Window is: ", window)
-    print ("Route is: ", sp_ports)        
-    print ("Total Sent: ", total_sent)
-    sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)
-    if total_sent == int(options.num):
-        print "Time Start: ", time_start
-        exit()
-
-def send():
-    global time_start
-    global options
-    options = getOptions(sys.argv[1:])
-
-    global list_switches, dict_host_ip, dict_link_weight, dict_link_port, src_host, dst_host, dst_ip
-    list_switches, dict_host_ip, dict_link_weight, dict_link_port = get_network (options.topo)
-    src_host, dst_host = options.src, options.dst
-    dst_ip = dict_host_ip[dst_host]
-
-    global sp_ports, window
-    sp_nodes, sp_ports = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
-    
-    iface_tx = get_if()
-    
-    print 'Path:', sp_ports
+    global wCurr, rCurr
     j = 0
     pkt = Ether(src=get_if_hwaddr(iface_tx), dst="ff:ff:ff:ff:ff:ff")
-    for p in sp_ports:
+    for p in rCurr:
         try:
             pkt = pkt / SourceRoute(bos=0, port=p)
             j = j+1
@@ -183,22 +161,24 @@ def send():
             pass
     if pkt.haslayer(SourceRoute):
         pkt.getlayer(SourceRoute, j).bos = 1
-    print ("Winodow is: ", window)
-    print ("Route is: ", sp_ports)
-    t = (time.time()-time_start)*1000
-    print "Send Time: ", t
-    pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000)) 
-    sendp(pkt, iface=iface_tx, inter=0, count=window, verbose=False)  
+    
+    # Check if sent enough packets
+    global totalSent
+    if wCurr + totalSent > goalSent:
+        wCurr = goalSent - totalSent
+    totalSent = totalSent + wCurr
+    print ("Winodow is: ", wCurr)
+    print ("Route is: ", rCurr)
+    t = (time.time()-time_start)*1000000 # timestamp in the unit of microsecond
+    pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000))
+    sendp(pkt, iface=iface_tx, inter=0, count=wCurr, verbose=False)  
 
-     
 def receive():    
     iface_rx = 'eth0'
     print "sniffing on %s" % iface_rx
     sys.stdout.flush()
-    sniff(filter="udp and port 4322", iface=iface_rx, prn=lambda x: handle_pkt(x))
+    sniff(filter="udp and port 4322", iface=iface_rx, prn=lambda x: react_ack(x))
 
 if __name__ == '__main__':
-    
-    Thread(target = send).start()
     Thread(target = receive).start()
-
+    Thread(target = send).start()
