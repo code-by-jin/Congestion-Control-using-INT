@@ -29,13 +29,16 @@ last_t_sent = 0
 lastSwtrace = {}
 dict_link_weight = {}
 wCurr = 50
-THRESHOLD = 0.8
-PROB_CONGESTION = 0.5
-PROB_NON_CONGESTION = 0.2
+WADD = 10
+WMAX = 200
+WMIN = 1
+THRESHOLD = 0.7
+PROB_CONGESTION = 0.6
+PROB_NON_CONGESTION = 0.1
+DEFAULT_WEIGHT = 0.01
 
 totalSent = 0
 justChangeRoute = 1
-WADD = 10
 time_start = time.time()
 
 def get_if():
@@ -60,7 +63,7 @@ def getOptions(args=sys.argv[1:]):
     parser.add_argument("-t", "--topo", type=str, default="ring", help="Network topology to use.")
     parser.add_argument("-s", "--src", type=str, default="h1", help="Source host name.")
     parser.add_argument("-d", "--dst", type=str, default="h4", help="Destination host name.")
-    parser.add_argument("-n", "--num", type=int, default="10000", help="The number of packets to send.")
+    parser.add_argument("-n", "--num", type=int, default="5000", help="The number of packets to send.")
     options = parser.parse_args(args)
     return options
 
@@ -68,7 +71,7 @@ options = getOptions(sys.argv[1:])
 list_switches, dict_host_ip, dict_link_weight, dict_link_port = get_network (options.topo)
 src_host, dst_host = options.src, options.dst
 dst_ip = dict_host_ip[dst_host]
-_, rCurr = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
+nCurr, rCurr = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
 goalSent = int(options.num)
 
 def measureInflight(ack, rtt):
@@ -76,14 +79,13 @@ def measureInflight(ack, rtt):
     swtraces = ack[MRI].swtraces
     swtraces.reverse()
 
-    # Tarver links between switches.
+    # Traverse links between switches.
     for i in range(1, ack[MRI].count-1):
         swSrc = 's'+str(swtraces[i].swid+1)
         swDst = 's'+str(swtraces[i+1].swid+1)
         link = (swSrc, swDst)
-        print "link", link
         qLen = swtraces[i].qdepth
-        rtt = swtraces[i+1].ingresst - swtraces[i].egresst
+
         txDiff = swtraces[i].txtotal - lastSwtrace[i].txtotal
         timeDiff = swtraces[i].egresst - lastSwtrace[i].egresst
         txRate = float(txDiff)/timeDiff 
@@ -97,15 +99,15 @@ def congestionControl(U, wCurr):
         w = int(wCurr/(uMax/THRESHOLD))
     else:
         w = wCurr + WADD 
-    return w 
+    return max(min(w, WMAX), WMIN) 
 
 def trafficEngineer(U):
     global dict_link_weight, dict_link_port, src_host, dst_host
-    G = dict_link_weight
+    G = dict_link_weight.copy()
     for link in U.keys():
-        G[link] = U[link]
-    _, route = get_shorest_path(G, dict_link_port, src = src_host, dst = dst_host)
-    return route
+        G[link] = max(U[link], DEFAULT_WEIGHT)
+    nodes, route = get_shorest_path(G, dict_link_port, src = src_host, dst = dst_host)
+    return nodes, route
 
 def react_ack(ack):
     # Filter the packets which are not INT acks from receiver
@@ -113,35 +115,39 @@ def react_ack(ack):
         return
 
     # Only react to the first packet if a sequence
-    global last_t_sent, justChangeRoute, wCurr, rCurr, lastSwtrace
+    global last_t_sent, justChangeRoute, wCurr, rCurr, nCurr, lastSwtrace
     tTx = ack[MRI].swtraces[-1].egresst
     if tTx > last_t_sent:    
         last_t_sent = tTx
        
         if justChangeRoute:
             window = wCurr
-            route = rCurr 
+            route = rCurr
+            nodes = nCurr 
         else:    
-            tRx = (time.time()-time_start)*1000000 # timestamp in the unit of microsecond
-            # rtt = (tRx - tTx)
-            rtt = 184034.806639
-            # print "RTT: ", rtt
+            #tRx = (time.time()-time_start)*1000000 # timestamp in the unit of microsecond
+            #rtt = (tRx - tTx)
+            rtt = 150000.0
+            #print "RTT: ", rtt
             U = measureInflight(ack, rtt)
             window = congestionControl(U, wCurr)
             route = rCurr
+            nodes = nCurr
             print "U Max: ", max(U.values())
             if max(U.values()) > THRESHOLD:
                 if random.random() < PROB_CONGESTION:
-                    route = trafficEngineer(U)
+                    nodes, route = trafficEngineer(U)
             else:
                 if random.random() < PROB_NON_CONGESTION:
-                    route = trafficEngineer({})
+                    nodes, route = trafficEngineer({})
         if route != rCurr:
             justChangeRoute = 1
+            window = min(50, window)
         else:
             justChangeRoute = 0
     	wCurr = window
     	rCurr = route
+        nCurr = nodes
     	print "If Change the Route: ", justChangeRoute
     	send()
 
@@ -164,11 +170,13 @@ def send():
     
     # Check if sent enough packets
     global totalSent
-    if wCurr + totalSent > goalSent:
+
+    if wCurr + totalSent >= goalSent:
         wCurr = goalSent - totalSent
+        print "Time Start: ", time_start
     totalSent = totalSent + wCurr
     print ("Winodow is: ", wCurr)
-    print ("Route is: ", rCurr)
+    print ("Route is: ", nCurr)
     t = (time.time()-time_start)*1000000 # timestamp in the unit of microsecond
     pkt = pkt / IP(dst=dst_ip, proto=17) / UDP(dport=4321, sport=1234) / MRI(count=1, swtraces=[SwitchTrace(swid=100, egresst=t)]) / str(RandString(size=1000))
     sendp(pkt, iface=iface_tx, inter=0, count=wCurr, verbose=False)  

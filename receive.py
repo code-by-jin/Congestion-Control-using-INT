@@ -64,7 +64,7 @@ def send_ack(pkt):
         ack.getlayer(SourceRoute, j).bos = 1 
 
     ack = ack / IP(dst=pkt[IP].src, proto=17) / UDP(dport=4322, sport=1235) / MRI(count=pkt[MRI].count, swtraces=pkt[MRI].swtraces)
-    ack.show2()
+    # ack.show2()
     sendp(ack, iface=iface, verbose=False)
     print ("ACK sent at time: ", time.time())    
 
@@ -74,7 +74,7 @@ def handle_pkt(pkt):
     global count
     count = count + 1
     print "in total number: ", count
-    pkt.show2()
+    # pkt.show2()
     sys.stdout.flush()
     send_ack(pkt)
 
