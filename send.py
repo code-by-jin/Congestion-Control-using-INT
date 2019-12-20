@@ -24,11 +24,13 @@ from scapy.fields import *
 import time
 np.random.seed(2)  # reproducible
 
-# global variables for window control and traffic engineer
+# global variables and constants for window control and traffic engineer
 last_t_sent = 0
 lastSwtrace = {}
 dict_link_weight = {}
 wCurr = 50
+
+WBASE = 50
 WADD = 10
 WMAX = 200
 WMIN = 1
@@ -53,6 +55,7 @@ def get_if():
         exit(1)
     return iface
 
+# Bind layers as new protocols are added
 bind_layers(Ether, SourceRoute, type=0x1234)
 bind_layers(SourceRoute, SourceRoute, bos=0)
 bind_layers(SourceRoute, IP, bos=1)
@@ -67,6 +70,7 @@ def getOptions(args=sys.argv[1:]):
     options = parser.parse_args(args)
     return options
 
+# Read aruguments the users input and make the network topology information available globally 
 options = getOptions(sys.argv[1:]) 
 list_switches, dict_host_ip, dict_link_weight, dict_link_port = get_network (options.topo)
 src_host, dst_host = options.src, options.dst
@@ -74,13 +78,14 @@ dst_ip = dict_host_ip[dst_host]
 nCurr, rCurr = get_shorest_path(dict_link_weight, dict_link_port, src = src_host, dst = dst_host)
 goalSent = int(options.num)
 
+
 def measureInflight(ack, rtt):
     U = {}
-    swtraces = ack[MRI].swtraces
-    swtraces.reverse()
+    swtraces = ack[MRI].swtraces # Read INT information
+    swtraces.reverse() # Reverse the swtraces to make it in the order of src to dst
 
     # Traverse links between switches.
-    for i in range(1, ack[MRI].count-1):
+    for i in range(1, ack[MRI].count-1): # Ignore the link between switch and host 
         swSrc = 's'+str(swtraces[i].swid+1)
         swDst = 's'+str(swtraces[i+1].swid+1)
         link = (swSrc, swDst)
@@ -96,14 +101,16 @@ def congestionControl(U, wCurr):
 
     uMax = max(U.values())
     if uMax > THRESHOLD:
-        w = int(wCurr/(uMax/THRESHOLD))
+        w = int(wCurr/(uMax/THRESHOLD)) 
     else:
         w = wCurr + WADD 
-    return max(min(w, WMAX), WMIN) 
+    return max(min(w, WMAX), WMIN) # Make sure the window is between WMIN and WMAX
 
 def trafficEngineer(U):
     global dict_link_weight, dict_link_port, src_host, dst_host
+    # To avoid changes in the orginal dictionary
     G = dict_link_weight.copy()
+   
     for link in U.keys():
         G[link] = max(U[link], DEFAULT_WEIGHT)
     nodes, route = get_shorest_path(G, dict_link_port, src = src_host, dst = dst_host)
@@ -111,15 +118,20 @@ def trafficEngineer(U):
 
 def react_ack(ack):
     # Filter the packets which are not INT acks from receiver
+    if MRI not in ack:
+        return
     if ack[MRI].count < 2:
         return
 
-    # Only react to the first packet if a sequence
+
     global last_t_sent, justChangeRoute, wCurr, rCurr, nCurr, lastSwtrace
+
+    # Only react to the first packet sent with a new window
     tTx = ack[MRI].swtraces[-1].egresst
     if tTx > last_t_sent:    
         last_t_sent = tTx
-       
+        
+        # Check if the route changed.
         if justChangeRoute:
             window = wCurr
             route = rCurr
@@ -142,7 +154,7 @@ def react_ack(ack):
                     nodes, route = trafficEngineer({})
         if route != rCurr:
             justChangeRoute = 1
-            window = min(50, window)
+            window = min(WBASE, window)
         else:
             justChangeRoute = 0
     	wCurr = window
@@ -151,8 +163,9 @@ def react_ack(ack):
     	print "If Change the Route: ", justChangeRoute
     	send()
 
+    # Remember the current INT information 
     lastSwtrace = ack[MRI].swtraces
-    lastSwtrace.reverse()
+    lastSwtrace.reverse() # Reverse the swtraces to make it in the order of src to dst
 
 def send(): 
     iface_tx = get_if()
@@ -173,7 +186,7 @@ def send():
 
     if wCurr + totalSent >= goalSent:
         wCurr = goalSent - totalSent
-        print "Time Start: ", time_start
+        print "Time Start: ", time_start # Recorded for FCT evaluation
     totalSent = totalSent + wCurr
     print ("Winodow is: ", wCurr)
     print ("Route is: ", nCurr)

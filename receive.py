@@ -71,6 +71,8 @@ def send_ack(pkt):
 count = 0
 
 def handle_pkt(pkt):
+    if MRI not in pkt:
+        return
     global count
     count = count + 1
     print "in total number: ", count
